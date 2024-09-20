@@ -179,6 +179,13 @@ export const run = async (args: string[], config: LoadedConfig) => {
         st.isBlockDevice() ||
         st.isFIFO() ||
         file.toLowerCase().endsWith('.tap')
+
+      let bin = node
+      // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
+      if (!process.versions.electron && file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
+        bin = require('electron')
+      }
+      
       return raw ?
           t.sub<TapFile, TapFileOpts>(TapFile, {
             at: null,
@@ -186,7 +193,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
             buffered,
             filename: file,
           })
-        : t.spawn(node, args, {
+        : t.spawn(bin, args, {
             at: null,
             stack: '',
             buffered,

@@ -99,6 +99,15 @@ export {
 
 export const t: TAP = tap()
 
+// on electron we need to quit process manually at the end
+if (process.versions.electron) {
+  // force end
+  t.teardown(() => setTimeout(() => process.exit(), 100))
+
+  // disable default exiting on all windows closed
+  require('electron').app.on('window-all-closed', () => { });
+}
+
 // People really like doing `import { test }`
 // this makes that work by exporting these methods as named exports.
 //
