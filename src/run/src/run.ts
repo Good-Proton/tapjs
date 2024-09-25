@@ -171,7 +171,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
         '\n',
       )
       const buffered = !testIsSerial(file) && t.jobs > 1
-      const args = [...argv, file, ...testArgs]
+      let args = [...argv, file, ...testArgs]
       // support stuff like `tap <(...)` or raw .tap files.
       const st = await stat(file)
       const raw =
@@ -180,11 +180,28 @@ export const run = async (args: string[], config: LoadedConfig) => {
         st.isFIFO() ||
         file.toLowerCase().endsWith('.tap')
 
-      let bin = node
-      // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
-      if (!process.versions.electron && file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
-        bin = require('electron')
-      }
+        let bin = node
+        // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
+        if (!process.versions.electron && file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
+            // @ts-ignore
+            const { default: electron } = await import('electron')
+            bin = electron;
+
+            const _args = args.slice();
+            args = [];
+            for (const arg of _args) {
+                if (/--(loader|import)=.*\/?ts-node/.test(arg)) {
+                    args.push('-r', '@isaacs/ts-node-temp-fork-for-pr-2009/register')
+                } else if (/--(loader|import)=.*\/?@tapjs\/processinfo/.test(arg)) {
+                    args.push('-r', '@tapjs/processinfo/register')
+                } else {
+                    args.push(arg)
+                }
+            }
+
+            // console.log(args);
+        }
+
       
       return raw ?
           t.sub<TapFile, TapFileOpts>(TapFile, {

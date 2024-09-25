@@ -9,6 +9,11 @@ import {
 import module from 'node:module'
 import { resolveImport } from 'resolve-import'
 
+// electron <28 does not support esm
+if (false) {
+
+}
+
 // if we have Module.register(), then use --import wherever possible
 const useImport = !!(module as { register?: (...a: any) => any })
   .register
