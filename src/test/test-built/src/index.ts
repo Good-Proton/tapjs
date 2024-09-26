@@ -345,6 +345,10 @@ const preimports = new Set<string>([
   "@isaacs/ts-node-temp-fork-for-pr-2009/import"
 ])
 
+const prerequires = new Set<string>([
+  "@isaacs/ts-node-temp-fork-for-pr-2009/register"
+])
+
 /**
  * The set of `loader` strings exported by plugins. If a plugin exports
  * `preload = true`, then it will be sorted to the start of this list, so
@@ -379,6 +383,18 @@ export const loaderFallbacks: string[] = [
 ].sort(
   (a, b) => preloaders.has(a) && !preloaders.has(b) ? -1
     : !preloaders.has(a) && preloaders.has(b) ? 1
+    : 0
+)
+
+/**
+ * All `requireRegister` strings exported by plugins, for use with
+ * `--require` in Electron v27 or lower
+ */
+export const requireRegisters: string[] = [
+  "@isaacs/ts-node-temp-fork-for-pr-2009/register"
+].sort(
+  (a, b) => prerequires.has(a) && !prerequires.has(b) ? -1
+    : !prerequires.has(a) && prerequires.has(b) ? 1
     : 0
 )
 

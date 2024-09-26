@@ -5,14 +5,10 @@ import {
   importLoaders,
   loaderFallbacks,
   loaders,
+  requireRegisters,
 } from '@tapjs/test'
 import module from 'node:module'
 import { resolveImport } from 'resolve-import'
-
-// electron <28 does not support esm
-if (false) {
-
-}
 
 // if we have Module.register(), then use --import wherever possible
 const useImport = !!(module as { register?: (...a: any) => any })
@@ -41,7 +37,7 @@ const pi =
       '@tapjs/processinfo/import',
       import.meta.url,
     )}`
-  : `--loader=${await resolveImport(
+    : `--loader=${await resolveImport(
       '@tapjs/processinfo/loader',
       import.meta.url,
     )}`
@@ -55,8 +51,29 @@ const always = [
   pi,
 ]
 
-export const testArgv = (config: LoadedConfig) => [
-  ...always,
-  ...execArgv(config.values),
-  ...(config.get('node-arg') || []),
-]
+const alwaysElectron27 = [
+  ...requireRegisters.reduce((acc, l) => [...acc, '-r', l], [] as string[]),
+  '--enable-source-maps',
+  // ensure this always comes last in the list
+  '-r', `${await resolveImport(
+    '@tapjs/processinfo/register',
+    import.meta.url,
+  )}`,
+];
+
+export const testArgv = (config: LoadedConfig, electron27 = false) => {
+  // Electron 27 and lower does not support `--loader` or `--import`
+  // need to use `--require`
+  if (electron27) {
+    return [
+      ...alwaysElectron27,
+      ...execArgv(config.values),
+      ...(config.get('node-arg') || []),
+    ]
+  }
+  return [
+    ...always,
+    ...execArgv(config.values),
+    ...(config.get('node-arg') || []),
+  ]
+}

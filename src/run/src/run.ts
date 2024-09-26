@@ -23,8 +23,6 @@ import { testIsSerial } from './test-is-serial.js'
 const regExpEscape = (s: string) =>
   s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')
 
-const node = process.execPath
-
 export const run = async (args: string[], config: LoadedConfig) => {
   // timeout in ms for test subprocesses, has a default
   // so it'll always be set to a number.
@@ -93,15 +91,15 @@ export const run = async (args: string[], config: LoadedConfig) => {
       const a =
         (t as TAP).pluginLoaded(SpawnPlugin) ?
           t
-        : t.applyPlugin(SpawnPlugin)
+          : t.applyPlugin(SpawnPlugin)
       const b =
         (a as TAP).pluginLoaded(BeforePlugin) ?
           a
-        : a.applyPlugin(BeforePlugin)
+          : a.applyPlugin(BeforePlugin)
       const c =
         (b as TAP).pluginLoaded(StdinPlugin) ?
           b
-        : b.applyPlugin(StdinPlugin)
+          : b.applyPlugin(StdinPlugin)
       /* c8 ignore stop */
       return c as TAP &
         ReturnType<typeof AfterPlugin> &
@@ -180,53 +178,53 @@ export const run = async (args: string[], config: LoadedConfig) => {
         st.isFIFO() ||
         file.toLowerCase().endsWith('.tap')
 
-        let bin = node
-        // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
-        if (!process.versions.electron && file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
-            // @ts-ignore
-            const { default: electron } = await import('electron')
-            bin = electron;
 
-            const _args = args.slice();
-            args = [];
-            for (const arg of _args) {
-                if (/--(loader|import)=.*\/?ts-node/.test(arg)) {
-                    args.push('-r', '@isaacs/ts-node-temp-fork-for-pr-2009/register')
-                } else if (/--(loader|import)=.*\/?@tapjs\/processinfo/.test(arg)) {
-                    args.push('-r', '@tapjs/processinfo/register')
-                } else {
-                    args.push(arg)
-                }
-            }
-
-            // console.log(args);
+      let bin: string = process.execPath;
+      // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
+      if (file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
+        if (process.versions.electron) {
+          bin = process.execPath;
+        } else {
+          // @ts-ignore
+          const { default: electron } = await import('electron')
+          bin = electron;
         }
 
-      
+        const electronVersion: string = process.versions.electron ||
+          // @ts-ignore
+          (await import('electron/package.json')).default.version;
+
+        const [major] = /^\d+\.\d+\.\d+/.exec(electronVersion) || ['', '', ''];
+
+        if (Number(major) <= 27) {
+          args = [...testArgv(config, true), file, ...testArgs];
+        }
+      }
+
       return raw ?
-          t.sub<TapFile, TapFileOpts>(TapFile, {
-            at: null,
-            cwd: config.projectRoot,
-            buffered,
-            filename: file,
-          })
+        t.sub<TapFile, TapFileOpts>(TapFile, {
+          at: null,
+          cwd: config.projectRoot,
+          buffered,
+          filename: file,
+        })
         : t.spawn(bin, args, {
-            at: null,
-            stack: '',
-            buffered,
-            timeout,
-            stdio,
-            env: {
-              ...env,
-              _TAPJS_PROCESSINFO_COVERAGE_,
-              _TAPJS_PROCESSINFO_COV_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_,
-            },
-            name,
-            cwd: config.projectRoot,
-            externalID: name,
-          })
+          at: null,
+          stack: '',
+          buffered,
+          timeout,
+          stdio,
+          env: {
+            ...env,
+            _TAPJS_PROCESSINFO_COVERAGE_,
+            _TAPJS_PROCESSINFO_COV_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_,
+          },
+          name,
+          cwd: config.projectRoot,
+          externalID: name,
+        })
     },
   )
 }
