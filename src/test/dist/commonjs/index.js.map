@@ -1,1 +1,1 @@
-{"version":3,"file":"index.js","sourceRoot":"","sources":["../../src/index.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;AAAA,yDAAsC;AACtC,uDAAoC","sourcesContent":["export * from '@tapjs/test/test-built'\nexport * from './default-plugins.js'\n"]}
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../src/index.ts"],"names":[],"mappings":";;;;;;;;;;;;;;;;AAAA,yDAAsC;AACtC,uDAAoC","sourcesContent":["export * from '@tapjs/test/test-built'\r\nexport * from './default-plugins.js'\r\n"]}
