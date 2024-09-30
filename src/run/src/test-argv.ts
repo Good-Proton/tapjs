@@ -51,19 +51,19 @@ const always = [
   pi,
 ]
 
-const alwaysElectron27 = [
+const requireCompatibleAlways = [
   ...requireRegisters.reduce((acc, l) => [...acc, '-r', l], [] as string[]),
   '--enable-source-maps',
   // ensure this always comes last in the list
   '-r', '@tapjs/processinfo/register',
 ];
 
-export const testArgv = (config: LoadedConfig, electron27 = false) => {
+export const testArgv = (config: LoadedConfig, requireCompatible = false) => {
   // Electron 27 and lower does not support `--loader` or `--import`
   // need to use `--require`
-  if (electron27) {
+  if (requireCompatible) {
     return [
-      ...alwaysElectron27,
+      ...requireCompatibleAlways,
       ...execArgv(config.values),
       ...(config.get('node-arg') || []),
     ]

@@ -13,6 +13,7 @@ import { runAfter } from './after.js'
 import { runBefore } from './before.js'
 import { build } from './build.js'
 import { getCoverageMap } from './coverage-map.js'
+import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js';
 import { executeTestSuite } from './execute-test-suite.js'
 import { values } from './main-config.js'
 import { outputDir } from './output-dir.js'
@@ -181,20 +182,10 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
       let bin: string = process.execPath;
       // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
-      if (file.match(/\.(e|electron)(\.spec)?\.[mc]?(js|ts)x?$/)) {
-        if (process.versions.electron) {
-          bin = process.execPath;
-        } else {
-          // @ts-ignore
-          const { default: electron } = await import('electron')
-          bin = electron;
-        }
+      if (isElectronTest(file)) {
+        bin = await getElectronBin(file);
 
-        const electronVersion: string = process.versions.electron ||
-          // @ts-ignore
-          (await import('electron/package.json', { assert: { type: 'json' } })).default.version;
-
-        const [, major] = /^(\d+)\.(\d+)\.(\d+)/.exec(electronVersion) || ['', '', ''];
+        const { major } = await getElectronVersion(file);
 
         if (Number(major) <= 27) {
           args = [...testArgv(config, true), file, ...testArgs];
