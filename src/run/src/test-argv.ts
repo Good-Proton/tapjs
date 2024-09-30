@@ -55,10 +55,7 @@ const alwaysElectron27 = [
   ...requireRegisters.reduce((acc, l) => [...acc, '-r', l], [] as string[]),
   '--enable-source-maps',
   // ensure this always comes last in the list
-  '-r', `${await resolveImport(
-    '@tapjs/processinfo/register',
-    import.meta.url,
-  )}`,
+  '-r', '@tapjs/processinfo/register',
 ];
 
 export const testArgv = (config: LoadedConfig, electron27 = false) => {

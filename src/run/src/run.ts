@@ -192,9 +192,9 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
         const electronVersion: string = process.versions.electron ||
           // @ts-ignore
-          (await import('electron/package.json')).default.version;
+          (await import('electron/package.json', { assert: { type: 'json' } })).default.version;
 
-        const [major] = /^\d+\.\d+\.\d+/.exec(electronVersion) || ['', '', ''];
+        const [, major] = /^(\d+)\.(\d+)\.(\d+)/.exec(electronVersion) || ['', '', ''];
 
         if (Number(major) <= 27) {
           args = [...testArgv(config, true), file, ...testArgs];
