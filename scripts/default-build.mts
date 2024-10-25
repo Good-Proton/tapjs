@@ -11,6 +11,7 @@ const builtinNames = readFileSync(
 )
   .trim()
   .split('\n')
+  .map(name => name.trim())
 
 const builtins = builtinNames.map(p => `@tapjs/${p}`)
 

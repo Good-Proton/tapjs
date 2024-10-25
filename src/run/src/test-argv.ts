@@ -5,6 +5,7 @@ import {
   importLoaders,
   loaderFallbacks,
   loaders,
+  requireRegisters,
 } from '@tapjs/test'
 import module from 'node:module'
 import { resolveImport } from 'resolve-import'
@@ -36,7 +37,7 @@ const pi =
       '@tapjs/processinfo/import',
       import.meta.url,
     )}`
-  : `--loader=${await resolveImport(
+    : `--loader=${await resolveImport(
       '@tapjs/processinfo/loader',
       import.meta.url,
     )}`
@@ -50,8 +51,26 @@ const always = [
   pi,
 ]
 
-export const testArgv = (config: LoadedConfig) => [
-  ...always,
-  ...execArgv(config.values),
-  ...(config.get('node-arg') || []),
-]
+const requireCompatibleAlways = [
+  ...requireRegisters.reduce((acc, l) => [...acc, '-r', l], [] as string[]),
+  '--enable-source-maps',
+  // ensure this always comes last in the list
+  '-r', '@tapjs/processinfo/register',
+];
+
+export const testArgv = (config: LoadedConfig, requireCompatible = false) => {
+  // Electron 27 and lower does not support `--loader` or `--import`
+  // need to use `--require`
+  if (requireCompatible) {
+    return [
+      ...requireCompatibleAlways,
+      ...execArgv(config.values),
+      ...(config.get('node-arg') || []),
+    ]
+  }
+  return [
+    ...always,
+    ...execArgv(config.values),
+    ...(config.get('node-arg') || []),
+  ]
+}

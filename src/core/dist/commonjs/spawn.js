@@ -27,6 +27,7 @@ class Spawn extends base_js_1.Base {
     #childKey = String(Math.random());
     #timedOut;
     #childId;
+    #childAskedToKill;
     constructor(options) {
         // figure out the name before calling super()
         const command = options.command;
@@ -70,6 +71,7 @@ class Spawn extends base_js_1.Base {
     }
     endAll() {
         if (this.proc) {
+            this.#childAskedToKill = undefined;
             this.proc.kill('SIGKILL');
             this.parser.abort('test unfinished');
         }
@@ -112,7 +114,21 @@ class Spawn extends base_js_1.Base {
                 typeof msg === 'object' &&
                 m.key === this.#childKey &&
                 m.child === this.#childId) {
-                this.setTimeout(m.setTimeout);
+                if (m.setTimeout !== undefined) {
+                    this.setTimeout(m.setTimeout);
+                }
+                if (m.killMe !== undefined && !this.#timedOut) {
+                    // child is done and asks to ensure killing
+                    this.#childAskedToKill = { exitCode: m.exitCode };
+                    const t = setTimeout(() => {
+                        const { signal, exitCode } = this.options;
+                        if (!signal && exitCode === undefined) {
+                            proc.kill('SIGKILL');
+                        }
+                    }, m.killMe);
+                    if (t.unref)
+                        t.unref();
+                }
                 return;
             }
             this.comment(...(Array.isArray(msg) ? msg : [msg]));
@@ -145,11 +161,15 @@ class Spawn extends base_js_1.Base {
         }
     }
     #onprocclose(code, signal) {
+        this.debug('SPAWN close %j %s', code, signal);
+        if (this.#childAskedToKill && signal === 'SIGKILL' && !this.#timedOut) {
+            signal = null;
+            code = this.#childAskedToKill.exitCode ?? code;
+        }
         this.options.exitCode = this.options.exitCode || code;
         this.options.signal = this.options.signal || signal;
         if (this.#timedOut)
             super.timeout(this.#timedOut);
-        this.debug('SPAWN close %j %s', code, signal);
         // spawn closing with no tests is treated as a skip.
         if (this.results &&
             this.results.plan &&

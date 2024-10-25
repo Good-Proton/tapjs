@@ -8,6 +8,8 @@ import { resolve } from 'node:path'
 export const loader = '@isaacs/ts-node-temp-fork-for-pr-2009/esm'
 export const importLoader =
   '@isaacs/ts-node-temp-fork-for-pr-2009/import'
+export const requireRegister = 
+  '@isaacs/ts-node-temp-fork-for-pr-2009/register'
 
 // ts-node/esm should come AHEAD of other loaders in the args list,
 // otherwise any other resolve()'s won't be run
