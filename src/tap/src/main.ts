@@ -99,14 +99,43 @@ export {
 
 export const t: TAP = tap()
 
+declare var process: NodeJS.Process & {
+  _exiting: boolean
+  reallyExit(exitCode: string | number): never
+}
+
+/* c8 ignore start */
 // on electron we need to quit process manually at the end
 if (process.versions.electron) {
   // force end
-  t.teardown(() => setTimeout(() => process.exit(), 100))
+  t.teardown(() => setTimeout(() => {
+
+    // electron misbehaves here by monkey-patching `process.exit()`
+    setTimeout(() => {
+      // if we did not exit in time, just force exit
+      t.comment('force exit electron process')
+      if (!process._exiting) {
+        process._exiting = true;
+        process.emit('exit', Number(process.exitCode) || 0);
+      }
+      process.reallyExit(process.exitCode || 0);
+    }, 50).unref?.();
+
+    // notify parent that we done
+    process.send?.({
+        killMe: 2_000,
+        key: process.env.TAP_CHILD_KEY,
+        child: process.env.TAP_CHILD_ID,
+    });
+
+    // try to be nice and ask electron to exit
+    process.exit();
+  }, 100))
 
   // disable default exiting on all windows closed
   require('electron').app.on('window-all-closed', () => { });
 }
+/* c8 ignore stop */
 
 // People really like doing `import { test }`
 // this makes that work by exporting these methods as named exports.

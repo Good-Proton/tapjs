@@ -24,6 +24,7 @@ export class Spawn extends Base {
     #childKey = String(Math.random());
     #timedOut;
     #childId;
+    #childAskedToKill = false;
     constructor(options) {
         // figure out the name before calling super()
         const command = options.command;
@@ -67,6 +68,7 @@ export class Spawn extends Base {
     }
     endAll() {
         if (this.proc) {
+            this.#childAskedToKill = false;
             this.proc.kill('SIGKILL');
             this.parser.abort('test unfinished');
         }
@@ -109,7 +111,21 @@ export class Spawn extends Base {
                 typeof msg === 'object' &&
                 m.key === this.#childKey &&
                 m.child === this.#childId) {
-                this.setTimeout(m.setTimeout);
+                if (m.setTimeout !== undefined) {
+                    this.setTimeout(m.setTimeout);
+                }
+                if (m.killMe !== undefined && !this.#timedOut) {
+                    // child is done and asks to ensure killing
+                    this.#childAskedToKill = true;
+                    const t = setTimeout(() => {
+                        const { signal, exitCode } = this.options;
+                        if (!signal && exitCode === undefined) {
+                            proc.kill('SIGKILL');
+                        }
+                    }, m.killMe);
+                    if (t.unref)
+                        t.unref();
+                }
                 return;
             }
             this.comment(...(Array.isArray(msg) ? msg : [msg]));
@@ -156,7 +172,7 @@ export class Spawn extends Base {
             this.options.skip =
                 this.results.plan.skipReason || 'no tests found';
         }
-        if (code || signal) {
+        if (code || (signal && !(this.#childAskedToKill && signal === 'SIGKILL'))) {
             if (this.results) {
                 this.results.ok = false;
             }

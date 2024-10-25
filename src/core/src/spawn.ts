@@ -100,6 +100,7 @@ export class Spawn extends Base<SpawnEvents> {
   #timedOut?: { expired?: string }
 
   #childId: string
+  #childAskedToKill = false
 
   constructor(options: SpawnOpts) {
     // figure out the name before calling super()
@@ -149,6 +150,7 @@ export class Spawn extends Base<SpawnEvents> {
 
   endAll() {
     if (this.proc) {
+      this.#childAskedToKill = false;
       this.proc.kill('SIGKILL')
       this.parser.abort('test unfinished')
     }
@@ -202,7 +204,8 @@ export class Spawn extends Base<SpawnEvents> {
       const m = msg as {
         key: string
         child: string
-        setTimeout: number
+        setTimeout?: number
+        killMe?: number
       }
       if (
         !!msg &&
@@ -210,7 +213,20 @@ export class Spawn extends Base<SpawnEvents> {
         m.key === this.#childKey &&
         m.child === this.#childId
       ) {
-        this.setTimeout(m.setTimeout)
+        if (m.setTimeout !== undefined) {
+          this.setTimeout(m.setTimeout)
+        }
+        if (m.killMe !== undefined && !this.#timedOut) {
+          // child is done and asks to ensure killing
+          this.#childAskedToKill = true;
+          const t = setTimeout(() => {
+            const { signal, exitCode } = this.options
+            if (!signal && exitCode === undefined) {
+              proc.kill('SIGKILL')
+            }
+          }, m.killMe)
+          if (t.unref) t.unref()
+        }
         return
       }
       this.comment(...(Array.isArray(msg) ? msg : [msg]))
@@ -262,7 +278,7 @@ export class Spawn extends Base<SpawnEvents> {
         this.results.plan.skipReason || 'no tests found'
     }
 
-    if (code || signal) {
+    if (code || (signal && !(this.#childAskedToKill && signal === 'SIGKILL'))) {
       if (this.results) {
         this.results.ok = false
       }
@@ -294,9 +310,9 @@ export class Spawn extends Base<SpawnEvents> {
             // doesn't matter.
             /* c8 ignore start */
           },
-          () => {},
+          () => { },
         )
-      } catch {}
+      } catch { }
       /* c8 ignore stop */
 
       // this whole bit has to be ignored because there is no way to test
@@ -306,7 +322,7 @@ export class Spawn extends Base<SpawnEvents> {
         // try to give it a chance to note the timeout and report handles
         try {
           proc.kill('SIGALRM')
-        } catch (er) {}
+        } catch (er) { }
         const t = setTimeout(() => {
           const { signal, exitCode } = this.options
           if (!signal && exitCode === undefined) {
@@ -336,10 +352,10 @@ export class Spawn extends Base<SpawnEvents> {
           .map(a =>
             a.indexOf(cwd) === 0 ?
               './' + a.substring(cwd.length + 1).replace(/\\/g, '/')
-            : a,
+              : a,
           )
           .join(' ')
           .trim()
-      : command + ' ' + args.join(' ')).replace(/\\/g, '/')
+        : command + ' ' + args.join(' ')).replace(/\\/g, '/')
   }
 }
