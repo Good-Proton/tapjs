@@ -27,7 +27,7 @@ class Spawn extends base_js_1.Base {
     #childKey = String(Math.random());
     #timedOut;
     #childId;
-    #childAskedToKill = false;
+    #childAskedToKill;
     constructor(options) {
         // figure out the name before calling super()
         const command = options.command;
@@ -71,7 +71,7 @@ class Spawn extends base_js_1.Base {
     }
     endAll() {
         if (this.proc) {
-            this.#childAskedToKill = false;
+            this.#childAskedToKill = undefined;
             this.proc.kill('SIGKILL');
             this.parser.abort('test unfinished');
         }
@@ -119,7 +119,7 @@ class Spawn extends base_js_1.Base {
                 }
                 if (m.killMe !== undefined && !this.#timedOut) {
                     // child is done and asks to ensure killing
-                    this.#childAskedToKill = true;
+                    this.#childAskedToKill = { exitCode: m.exitCode };
                     const t = setTimeout(() => {
                         const { signal, exitCode } = this.options;
                         if (!signal && exitCode === undefined) {
@@ -161,11 +161,15 @@ class Spawn extends base_js_1.Base {
         }
     }
     #onprocclose(code, signal) {
+        this.debug('SPAWN close %j %s', code, signal);
+        if (this.#childAskedToKill && signal === 'SIGKILL' && !this.#timedOut) {
+            signal = null;
+            code = this.#childAskedToKill.exitCode ?? code;
+        }
         this.options.exitCode = this.options.exitCode || code;
         this.options.signal = this.options.signal || signal;
         if (this.#timedOut)
             super.timeout(this.#timedOut);
-        this.debug('SPAWN close %j %s', code, signal);
         // spawn closing with no tests is treated as a skip.
         if (this.results &&
             this.results.plan &&
@@ -175,7 +179,7 @@ class Spawn extends base_js_1.Base {
             this.options.skip =
                 this.results.plan.skipReason || 'no tests found';
         }
-        if (code || (signal && !(this.#childAskedToKill && signal === 'SIGKILL'))) {
+        if (code || signal) {
             if (this.results) {
                 this.results.ok = false;
             }
