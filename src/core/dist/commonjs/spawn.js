@@ -119,6 +119,7 @@ class Spawn extends base_js_1.Base {
                 }
                 if (m.killMe !== undefined && !this.#timedOut) {
                     // child is done and asks to ensure killing
+                    // after this point child is treated as OK regardles of exitCode or signal (only exception - timeout)
                     this.#childAskedToKill = { exitCode: m.exitCode };
                     const t = setTimeout(() => {
                         const { signal, exitCode } = this.options;
@@ -162,7 +163,7 @@ class Spawn extends base_js_1.Base {
     }
     #onprocclose(code, signal) {
         this.debug('SPAWN close %j %s', code, signal);
-        if (this.#childAskedToKill && signal === 'SIGKILL' && !this.#timedOut) {
+        if (this.#childAskedToKill && !this.#timedOut) {
             signal = null;
             code = this.#childAskedToKill.exitCode ?? code;
         }
