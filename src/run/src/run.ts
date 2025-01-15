@@ -67,7 +67,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
   const embeddedEndpointDir = resolve(config.projectRoot, '.tap', 'embedded-endpoints');
   await rimraf(embeddedEndpointDir);
-  await mkdir(embeddedEndpointDir);
+  await mkdir(embeddedEndpointDir, { recursive: true });
 
   return executeTestSuite(
     args,
