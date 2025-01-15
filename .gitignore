@@ -3,7 +3,7 @@
 /src/*/.tsimp
 /docs
 /src/*/.tshy-build-tmp
-# /src/*/.tshy-build
+/src/*/.tshy-build
 /src/*/node_modules
 /src/*/.tap
 /.tap
