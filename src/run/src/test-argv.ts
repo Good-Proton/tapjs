@@ -37,7 +37,7 @@ const pi =
       '@tapjs/processinfo/import',
       import.meta.url,
     )}`
-    : `--loader=${await resolveImport(
+  : `--loader=${await resolveImport(
       '@tapjs/processinfo/loader',
       import.meta.url,
     )}`
@@ -51,26 +51,53 @@ const always = [
   pi,
 ]
 
-const requireCompatibleAlways = [
-  ...requireRegisters.reduce((acc, l) => [...acc, '-r', l], [] as string[]),
+const requireAlways = [
   '--enable-source-maps',
   // ensure this always comes last in the list
-  '-r', '@tapjs/processinfo/register',
-];
+  '-r',
+  '@tapjs/processinfo/register',
+]
 
-export const testArgv = (config: LoadedConfig, requireCompatible = false) => {
+const requireCompatibleAlways = [
+  ...requireRegisters.reduce(
+    (acc, l) => [...acc, '-r', l],
+    [] as string[],
+  ),
+  ...requireAlways,
+]
+
+export const testArgv = (
+  config: LoadedConfig,
+  requireCompatible?: RequireMode,
+) => {
   // Electron 27 and lower does not support `--loader` or `--import`
   // need to use `--require`
-  if (requireCompatible) {
+  if (requireCompatible === RequireMode.Compatible) {
     return [
       ...requireCompatibleAlways,
       ...execArgv(config.values),
       ...(config.get('node-arg') || []),
     ]
   }
+
+  if (requireCompatible === RequireMode.Embedded) {
+    return [
+      ...requireAlways,
+      ...execArgv(config.values),
+      ...(config.get('node-arg') || []),
+    ]
+  }
+
   return [
     ...always,
     ...execArgv(config.values),
     ...(config.get('node-arg') || []),
   ]
 }
+
+export const RequireMode = {
+  Compatible: 'Compatible',
+  Embedded: 'Embedded',
+} as const
+export type RequireMode =
+  (typeof RequireMode)[keyof typeof RequireMode]

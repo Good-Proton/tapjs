@@ -6,19 +6,20 @@ import { TapFile, TapFileOpts, type TAP } from '@tapjs/core'
 import { plugin as SpawnPlugin } from '@tapjs/spawn'
 import { plugin as StdinPlugin } from '@tapjs/stdin'
 import { glob } from 'glob'
-import { stat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, stat, writeFile } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { rimraf } from 'rimraf'
 import { runAfter } from './after.js'
 import { runBefore } from './before.js'
 import { build } from './build.js'
 import { getCoverageMap } from './coverage-map.js'
-import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js';
+import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js'
 import { executeTestSuite } from './execute-test-suite.js'
 import { values } from './main-config.js'
 import { outputDir } from './output-dir.js'
 import { readSave } from './save-list.js'
-import { testArgv } from './test-argv.js'
+import { RequireMode, testArgv } from './test-argv.js'
 import { testIsSerial } from './test-is-serial.js'
 
 const regExpEscape = (s: string) =>
@@ -63,6 +64,10 @@ export const run = async (args: string[], config: LoadedConfig) => {
       '^' + regExpEscape(resolve(config.projectRoot, 'node_modules')),
     ),
   )
+
+  const embeddedEndpointDir = resolve(config.projectRoot, '.tap', 'embedded-endpoints');
+  await rimraf(embeddedEndpointDir);
+  await mkdir(embeddedEndpointDir);
 
   return executeTestSuite(
     args,
@@ -186,9 +191,15 @@ export const run = async (args: string[], config: LoadedConfig) => {
         bin = await getElectronBin(file);
 
         const { major } = await getElectronVersion(file);
+        const majorNum = Number(major);
 
-        if (Number(major) <= 27) {
-          args = [...testArgv(config, true), file, ...testArgs];
+        if (majorNum <= 27) {
+          args = [...testArgv(config, RequireMode.Compatible), file, ...testArgs];
+        } else if (majorNum <= 29) {
+          const tmpFilePath = resolve(embeddedEndpointDir, `test-${randomUUID()}.js`);
+          await writeFile(tmpFilePath, generateEmbeddedTsRegister(file));
+
+          args = [...testArgv(config, RequireMode.Embedded), tmpFilePath, ...testArgs];
         }
       }
 
@@ -218,4 +229,13 @@ export const run = async (args: string[], config: LoadedConfig) => {
         })
     },
   )
+}
+
+const requireTsRegister = '@isaacs/ts-node-temp-fork-for-pr-2009/register';
+function generateEmbeddedTsRegister(testFile: string) {
+  return `
+require('${requireTsRegister}');
+  
+require('${testFile}');
+`
 }
