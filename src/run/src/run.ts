@@ -7,7 +7,7 @@ import { plugin as SpawnPlugin } from '@tapjs/spawn'
 import { plugin as StdinPlugin } from '@tapjs/stdin'
 import { glob } from 'glob'
 import { randomUUID } from 'node:crypto'
-import { mkdir, stat, writeFile } from 'node:fs/promises'
+import { mkdir, stat, writeFile, unlink } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { rimraf } from 'rimraf'
 import { runAfter } from './after.js'
@@ -19,7 +19,7 @@ import { executeTestSuite } from './execute-test-suite.js'
 import { values } from './main-config.js'
 import { outputDir } from './output-dir.js'
 import { readSave } from './save-list.js'
-import { RequireMode, testArgv } from './test-argv.js'
+import { testArgv } from './test-argv.js'
 import { testIsSerial } from './test-is-serial.js'
 
 const regExpEscape = (s: string) =>
@@ -65,9 +65,8 @@ export const run = async (args: string[], config: LoadedConfig) => {
     ),
   )
 
-  const embeddedEndpointDir = resolve(config.projectRoot, '.tap', 'embedded-endpoints');
-  await rimraf(embeddedEndpointDir);
-  await mkdir(embeddedEndpointDir, { recursive: true });
+  const dynamicEndpointDir = resolve(config.projectRoot, '.tap', 'dynamic-endpoints');
+  await mkdir(dynamicEndpointDir, { recursive: true });
 
   return executeTestSuite(
     args,
@@ -191,15 +190,18 @@ export const run = async (args: string[], config: LoadedConfig) => {
         bin = await getElectronBin(file);
 
         const { major } = await getElectronVersion(file);
-        const majorNum = Number(major);
 
-        if (majorNum <= 27) {
-          args = [...testArgv(config, RequireMode.Compatible), file, ...testArgs];
-        } else if (majorNum <= 29) {
-          const tmpFilePath = resolve(embeddedEndpointDir, `test-${randomUUID()}.js`);
-          await writeFile(tmpFilePath, generateEmbeddedTsRegister(file));
+        if (major <= 27) {
+          args = [...testArgv(config, true), file, ...testArgs];
+        } else if (major <= 29) {
+          const dynamicEntrypointPath = resolve(
+            dynamicEndpointDir, 
+            `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
+          );
+          await writeFile(dynamicEntrypointPath, `require('${file}')`);
+          t.teardown(() => unlink(dynamicEntrypointPath).catch(dontCare => { /* do nothing */ }))
 
-          args = [...testArgv(config, RequireMode.Embedded), tmpFilePath, ...testArgs];
+          args = [...testArgv(config, true), dynamicEntrypointPath, ...testArgs];
         }
       }
 
@@ -229,13 +231,4 @@ export const run = async (args: string[], config: LoadedConfig) => {
         })
     },
   )
-}
-
-const requireTsRegister = '@isaacs/ts-node-temp-fork-for-pr-2009/register';
-function generateEmbeddedTsRegister(testFile: string) {
-  return `
-require('${requireTsRegister}');
-  
-require('${testFile}');
-`
 }
