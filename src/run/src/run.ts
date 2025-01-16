@@ -6,14 +6,15 @@ import { TapFile, TapFileOpts, type TAP } from '@tapjs/core'
 import { plugin as SpawnPlugin } from '@tapjs/spawn'
 import { plugin as StdinPlugin } from '@tapjs/stdin'
 import { glob } from 'glob'
-import { stat } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
+import { mkdir, stat, writeFile, unlink } from 'node:fs/promises'
 import { relative, resolve } from 'node:path'
 import { rimraf } from 'rimraf'
 import { runAfter } from './after.js'
 import { runBefore } from './before.js'
 import { build } from './build.js'
 import { getCoverageMap } from './coverage-map.js'
-import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js';
+import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js'
 import { executeTestSuite } from './execute-test-suite.js'
 import { values } from './main-config.js'
 import { outputDir } from './output-dir.js'
@@ -63,6 +64,9 @@ export const run = async (args: string[], config: LoadedConfig) => {
       '^' + regExpEscape(resolve(config.projectRoot, 'node_modules')),
     ),
   )
+
+  const dynamicEndpointDir = resolve(config.projectRoot, '.tap', 'dynamic-endpoints');
+  await mkdir(dynamicEndpointDir, { recursive: true });
 
   return executeTestSuite(
     args,
@@ -187,8 +191,17 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
         const { major } = await getElectronVersion(file);
 
-        if (Number(major) <= 27) {
+        if (major <= 27) {
           args = [...testArgv(config, true), file, ...testArgs];
+        } else if (major <= 29) {
+          const dynamicEntrypointPath = resolve(
+            dynamicEndpointDir, 
+            `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
+          );
+          await writeFile(dynamicEntrypointPath, `require('${file}')`);
+          t.teardown(() => unlink(dynamicEntrypointPath).catch(dontCare => { /* do nothing */ }))
+
+          args = [...testArgv(config, true), dynamicEntrypointPath, ...testArgs];
         }
       }
 

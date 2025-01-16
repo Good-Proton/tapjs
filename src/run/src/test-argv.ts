@@ -37,7 +37,7 @@ const pi =
       '@tapjs/processinfo/import',
       import.meta.url,
     )}`
-    : `--loader=${await resolveImport(
+  : `--loader=${await resolveImport(
       '@tapjs/processinfo/loader',
       import.meta.url,
     )}`
