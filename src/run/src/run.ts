@@ -8,7 +8,7 @@ import { plugin as StdinPlugin } from '@tapjs/stdin'
 import { glob } from 'glob'
 import { randomUUID } from 'node:crypto'
 import { mkdir, stat, writeFile, unlink } from 'node:fs/promises'
-import { relative, resolve } from 'node:path'
+import { relative, resolve, sep, posix } from 'node:path'
 import { rimraf } from 'rimraf'
 import { runAfter } from './after.js'
 import { runBefore } from './before.js'
@@ -198,7 +198,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
             dynamicEndpointDir, 
             `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
           );
-          await writeFile(dynamicEntrypointPath, `require('${file}')`);
+          await writeFile(dynamicEntrypointPath, `require('${file.replaceAll(sep, posix.sep)}')`);
           t.teardown(() => unlink(dynamicEntrypointPath).catch(dontCare => { /* do nothing */ }))
 
           args = [...testArgv(config, true), dynamicEntrypointPath, ...testArgs];
