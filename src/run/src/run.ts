@@ -193,7 +193,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
         if (major <= 27) {
           args = [...testArgv(config, true), file, ...testArgs];
-        } else if (major <= 29) {
+        } else if (major <= 31) {
           const dynamicEntrypointPath = resolve(
             dynamicEndpointDir, 
             `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
