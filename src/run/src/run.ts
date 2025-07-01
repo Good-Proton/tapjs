@@ -193,9 +193,9 @@ export const run = async (args: string[], config: LoadedConfig) => {
 
         if (major <= 27) {
           args = [...testArgv(config, true), file, ...testArgs];
-        } else if (major <= 31) {
+        } else {
           const dynamicEntrypointPath = resolve(
-            dynamicEndpointDir, 
+            dynamicEndpointDir,
             `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
           );
           await writeFile(dynamicEntrypointPath, `require('${file.replaceAll(sep, posix.sep)}')`);
