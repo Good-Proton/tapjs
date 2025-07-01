@@ -96,15 +96,15 @@ export const run = async (args: string[], config: LoadedConfig) => {
       const a =
         (t as TAP).pluginLoaded(SpawnPlugin) ?
           t
-        : t.applyPlugin(SpawnPlugin)
+          : t.applyPlugin(SpawnPlugin)
       const b =
         (a as TAP).pluginLoaded(BeforePlugin) ?
           a
-        : a.applyPlugin(BeforePlugin)
+          : a.applyPlugin(BeforePlugin)
       const c =
         (b as TAP).pluginLoaded(StdinPlugin) ?
           b
-        : b.applyPlugin(StdinPlugin)
+          : b.applyPlugin(StdinPlugin)
       /* c8 ignore stop */
       return c as TAP &
         ReturnType<typeof AfterPlugin> &
@@ -206,29 +206,29 @@ export const run = async (args: string[], config: LoadedConfig) => {
       }
 
       return raw ?
-          t.sub<TapFile, TapFileOpts>(TapFile, {
-            at: null,
-            cwd: config.projectRoot,
-            buffered,
-            filename: file,
-          })
+        t.sub<TapFile, TapFileOpts>(TapFile, {
+          at: null,
+          cwd: config.projectRoot,
+          buffered,
+          filename: file,
+        })
         : t.spawn(bin, args, {
-            at: null,
-            stack: '',
-            buffered,
-            timeout,
-            stdio,
-            env: {
-              ...env,
-              _TAPJS_PROCESSINFO_COVERAGE_,
-              _TAPJS_PROCESSINFO_COV_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_,
-            },
-            name,
-            cwd: config.projectRoot,
-            externalID: name,
-          })
+          at: null,
+          stack: '',
+          buffered,
+          timeout,
+          stdio,
+          env: {
+            ...env,
+            _TAPJS_PROCESSINFO_COVERAGE_,
+            _TAPJS_PROCESSINFO_COV_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_,
+          },
+          name,
+          cwd: config.projectRoot,
+          externalID: name,
+        })
     },
   )
 }
