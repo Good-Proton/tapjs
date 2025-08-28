@@ -6,11 +6,14 @@
 /**
  * A reference to the global `process` object, if available
  */
-export declare const proc: NodeJS.Process | undefined;
+export declare const proc: (NodeJS.Process & {
+    _exiting: boolean;
+    reallyExit(exitCode: string | number): never;
+}) | undefined;
 /**
  * A reference to `process.argv`, if available
  */
-export declare const argv: string[];
+export declare const execArgv: string[], argv: string[];
 /**
  * A reference to `process.cwd()`, if available. Note that this is not
  * updated if `process.chdir()` is called.

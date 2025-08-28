@@ -153,6 +153,10 @@ class TAP extends test_1.Test {
         // of any subtest.
         const rootDomain = new async_hook_domain_1.Domain((er, type) => this.hookDomain.onerror(er, type));
         this.hook.onDestroy = () => rootDomain.destroy();
+        if (proc_js_1.proc && proc_js_1.proc.versions.electron) {
+            // disable default exiting on all windows closed
+            require('electron').app.on('window-all-closed', () => { });
+        }
     }
     onbail(reason) {
         if (registered) {
@@ -198,6 +202,38 @@ class TAP extends test_1.Test {
             this.debug('TAP results not ok, setting exitCode', results);
             proc_js_1.proc.exitCode = 1;
         }
+        /* c8 ignore start */
+        // on electron we need to quit process manually at the end
+        if (registered && proc_js_1.proc && proc_js_1.proc.versions.electron) {
+            const process = proc_js_1.proc;
+            // force end
+            setTimeout(() => {
+                const exitCode = results.ok ? 0 : 1;
+                if (exitCode) {
+                    process.exitCode = exitCode;
+                }
+                // electron misbehaves here by monkey-patching `process.exit()`
+                setTimeout(() => {
+                    // if we did not exit in time, just force exit
+                    this.comment('force exit electron process');
+                    if (!process._exiting) {
+                        process._exiting = true;
+                        process.emit('exit', Number(process.exitCode) || 0);
+                    }
+                    process.reallyExit(process.exitCode ?? 0);
+                }, 50).unref?.();
+                // notify parent that we done
+                process.send?.({
+                    killMe: 2_000,
+                    exitCode,
+                    key: process.env.TAP_CHILD_KEY,
+                    child: process.env.TAP_CHILD_ID,
+                });
+                // try to be nice and ask electron to exit
+                process.exit(exitCode);
+            }, 100).unref?.();
+        }
+        /* c8 ignore stop */
     }
     /**
      * Similar to the normal {@link @tapjs/core!test-base.TestBase#timeout}, but

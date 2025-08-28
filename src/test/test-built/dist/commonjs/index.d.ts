@@ -299,6 +299,11 @@ export declare const importLoaders: string[];
  */
 export declare const loaderFallbacks: string[];
 /**
+ * All `requireRegister` strings exported by plugins, for use with
+ * `--require` in Electron v27 or lower
+ */
+export declare const requireRegisters: string[];
+/**
  * The string signature that lists all loaded plugins alphabetically, used
  * to determine whether a rebuild is necessary by comparing it to the `plugin`
  * config value.

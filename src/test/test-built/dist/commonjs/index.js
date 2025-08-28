@@ -27,7 +27,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Test = exports.signature = exports.loaderFallbacks = exports.importLoaders = exports.loaders = exports.config = exports.execArgv = exports.testFileExtensions = void 0;
+exports.Test = exports.signature = exports.requireRegisters = exports.loaderFallbacks = exports.importLoaders = exports.loaders = exports.config = exports.execArgv = exports.testFileExtensions = void 0;
 const core_1 = require("@tapjs/core");
 //{{PLUGIN IMPORT START}}
 const Plugin_after = __importStar(require("@tapjs/after"));
@@ -227,6 +227,9 @@ const preloaders = new Set([
 const preimports = new Set([
     "@isaacs/ts-node-temp-fork-for-pr-2009/import"
 ]);
+const prerequires = new Set([
+    "@isaacs/ts-node-temp-fork-for-pr-2009/register"
+]);
 /**
  * The set of `loader` strings exported by plugins. If a plugin exports
  * `preload = true`, then it will be sorted to the start of this list, so
@@ -254,6 +257,15 @@ exports.loaderFallbacks = [
     "@isaacs/ts-node-temp-fork-for-pr-2009/esm"
 ].sort((a, b) => preloaders.has(a) && !preloaders.has(b) ? -1
     : !preloaders.has(a) && preloaders.has(b) ? 1
+        : 0);
+/**
+ * All `requireRegister` strings exported by plugins, for use with
+ * `--require` in Electron v27 or lower
+ */
+exports.requireRegisters = [
+    "@isaacs/ts-node-temp-fork-for-pr-2009/register"
+].sort((a, b) => prerequires.has(a) && !prerequires.has(b) ? -1
+    : !prerequires.has(a) && prerequires.has(b) ? 1
         : 0);
 //{{LOADERS END}}
 /**

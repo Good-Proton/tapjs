@@ -73,8 +73,11 @@ const hasLoader = new Map();
 const hasImport = new Map();
 // the loader export, if an importLoader is present
 const hasLoaderFallback = new Map();
+// has an requireRegister export
+const hasRequireRegister = new Map();
 const preloaders = new Map();
 const preimports = new Map();
+const prerequires = new Map();
 const testFileExtensions = new Set();
 const signature = plugins.join('\n');
 const signatureCode = `export const signature = \`${signature}\`
@@ -172,6 +175,11 @@ const pluginNames = await Promise.all(plugins.map(async (p) => {
             hasLoader.set(p, imp.loader);
         else
             hasLoaderFallback.set(p, imp.loader);
+    }
+    if (typeof imp.requireRegister === 'string') {
+        if (imp.preload === true)
+            prerequires.set(p, imp.requireRegister);
+        hasRequireRegister.set(p, imp.requireRegister);
     }
     // we can't reasonably add more file types if we didn't add some
     // functionality.
@@ -278,6 +286,8 @@ const pluginLoaders = `const preloaders = new Set<string>(${JSON.stringify(sorte
 
 const preimports = new Set<string>(${JSON.stringify(sortedMapValues(preimports), null, 2)})
 
+const prerequires = new Set<string>(${JSON.stringify(sortedMapValues(prerequires), null, 2)})
+
 /**
  * The set of \`loader\` strings exported by plugins. If a plugin exports
  * \`preload = true\`, then it will be sorted to the start of this list, so
@@ -306,6 +316,16 @@ export const importLoaders: string[] = ${JSON.stringify(sortedMapValues(hasImpor
 export const loaderFallbacks: string[] = ${JSON.stringify(sortedMapValues(new Map([...hasLoaderFallback, ...hasLoader])), null, 2)}.sort(
   (a, b) => preloaders.has(a) && !preloaders.has(b) ? -1
     : !preloaders.has(a) && preloaders.has(b) ? 1
+    : 0
+)
+
+/**
+ * All \`requireRegister\` strings exported by plugins, for use with
+ * \`--require\` in Electron v27 or lower
+ */
+export const requireRegisters: string[] = ${JSON.stringify(sortedMapValues(hasRequireRegister), null, 2)}.sort(
+  (a, b) => prerequires.has(a) && !prerequires.has(b) ? -1
+    : !prerequires.has(a) && prerequires.has(b) ? 1
     : 0
 )
 

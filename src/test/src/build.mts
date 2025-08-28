@@ -103,9 +103,12 @@ const hasLoader = new Map<string, string>()
 const hasImport = new Map<string, string>()
 // the loader export, if an importLoader is present
 const hasLoaderFallback = new Map<string, string>()
+// has an requireRegister export
+const hasRequireRegister = new Map<string, string>()
 
 const preloaders = new Map<string, string>()
 const preimports = new Map<string, string>()
+const prerequires = new Map<string, string>()
 const testFileExtensions = new Set<string>()
 
 const signature = plugins.join('\n')
@@ -133,6 +136,7 @@ type PluginExport = {
   } & { nodeArgs?: (value: any) => string[] }
   loader?: string
   importLoader?: string
+  requireRegister?: string
   preload?: boolean
   testFileExtensions?: string[]
 }
@@ -239,6 +243,10 @@ const pluginNames = await Promise.all(
       if (imp.preload === true) preloaders.set(p, imp.loader)
       if (!imp.importLoader) hasLoader.set(p, imp.loader)
       else hasLoaderFallback.set(p, imp.loader)
+    }
+    if (typeof imp.requireRegister === 'string') {
+      if (imp.preload === true) prerequires.set(p, imp.requireRegister)
+      hasRequireRegister.set(p, imp.requireRegister)
     }
 
     // we can't reasonably add more file types if we didn't add some
@@ -376,6 +384,12 @@ const preimports = new Set<string>(${JSON.stringify(
   2,
 )})
 
+const prerequires = new Set<string>(${JSON.stringify(
+  sortedMapValues(prerequires),
+  null,
+  2,
+)})
+
 /**
  * The set of \`loader\` strings exported by plugins. If a plugin exports
  * \`preload = true\`, then it will be sorted to the start of this list, so
@@ -416,6 +430,20 @@ export const loaderFallbacks: string[] = ${JSON.stringify(
 )}.sort(
   (a, b) => preloaders.has(a) && !preloaders.has(b) ? -1
     : !preloaders.has(a) && preloaders.has(b) ? 1
+    : 0
+)
+
+/**
+ * All \`requireRegister\` strings exported by plugins, for use with
+ * \`--require\` in Electron v27 or lower
+ */
+export const requireRegisters: string[] = ${JSON.stringify(
+  sortedMapValues(hasRequireRegister),
+  null,
+  2,
+)}.sort(
+  (a, b) => prerequires.has(a) && !prerequires.has(b) ? -1
+    : !prerequires.has(a) && prerequires.has(b) ? 1
     : 0
 )
 

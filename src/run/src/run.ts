@@ -6,13 +6,15 @@ import { TapFile, TapFileOpts, type TAP } from '@tapjs/core'
 import { plugin as SpawnPlugin } from '@tapjs/spawn'
 import { plugin as StdinPlugin } from '@tapjs/stdin'
 import { glob } from 'glob'
-import { stat } from 'node:fs/promises'
-import { relative, resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { mkdir, stat, writeFile, unlink } from 'node:fs/promises'
+import { relative, resolve, sep, posix } from 'node:path'
 import { rimraf } from 'rimraf'
 import { runAfter } from './after.js'
 import { runBefore } from './before.js'
 import { build } from './build.js'
 import { getCoverageMap } from './coverage-map.js'
+import { getElectronBin, getElectronVersion, isElectronTest } from './electron.js'
 import { executeTestSuite } from './execute-test-suite.js'
 import { values } from './main-config.js'
 import { outputDir } from './output-dir.js'
@@ -22,8 +24,6 @@ import { testIsSerial } from './test-is-serial.js'
 
 const regExpEscape = (s: string) =>
   s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')
-
-const node = process.execPath
 
 export const run = async (args: string[], config: LoadedConfig) => {
   // timeout in ms for test subprocesses, has a default
@@ -65,6 +65,9 @@ export const run = async (args: string[], config: LoadedConfig) => {
     ),
   )
 
+  const dynamicEndpointDir = resolve(config.projectRoot, '.tap', 'dynamic-endpoints');
+  await mkdir(dynamicEndpointDir, { recursive: true });
+
   return executeTestSuite(
     args,
     config,
@@ -93,15 +96,15 @@ export const run = async (args: string[], config: LoadedConfig) => {
       const a =
         (t as TAP).pluginLoaded(SpawnPlugin) ?
           t
-        : t.applyPlugin(SpawnPlugin)
+          : t.applyPlugin(SpawnPlugin)
       const b =
         (a as TAP).pluginLoaded(BeforePlugin) ?
           a
-        : a.applyPlugin(BeforePlugin)
+          : a.applyPlugin(BeforePlugin)
       const c =
         (b as TAP).pluginLoaded(StdinPlugin) ?
           b
-        : b.applyPlugin(StdinPlugin)
+          : b.applyPlugin(StdinPlugin)
       /* c8 ignore stop */
       return c as TAP &
         ReturnType<typeof AfterPlugin> &
@@ -171,7 +174,7 @@ export const run = async (args: string[], config: LoadedConfig) => {
         '\n',
       )
       const buffered = !testIsSerial(file) && t.jobs > 1
-      const args = [...argv, file, ...testArgs]
+      let args = [...argv, file, ...testArgs]
       // support stuff like `tap <(...)` or raw .tap files.
       const st = await stat(file)
       const raw =
@@ -179,30 +182,53 @@ export const run = async (args: string[], config: LoadedConfig) => {
         st.isBlockDevice() ||
         st.isFIFO() ||
         file.toLowerCase().endsWith('.tap')
+
+
+      let bin: string = process.execPath;
+      // support of electron files: `.electron.spec.ts`, `.e.mjs`, etc
+      if (isElectronTest(file)) {
+        bin = await getElectronBin(file);
+
+        const { major } = await getElectronVersion(file);
+
+        if (major <= 27) {
+          args = [...testArgv(config, true), file, ...testArgs];
+        } else {
+          const dynamicEntrypointPath = resolve(
+            dynamicEndpointDir,
+            `${name.replace(/[^a-zA-Z0-9\._\-]+/gi, '-')}-${randomUUID()}.js`
+          );
+          await writeFile(dynamicEntrypointPath, `require('${file.replaceAll(sep, posix.sep)}')`);
+          t.teardown(() => unlink(dynamicEntrypointPath).catch(dontCare => { /* do nothing */ }))
+
+          args = [...testArgv(config, true), dynamicEntrypointPath, ...testArgs];
+        }
+      }
+
       return raw ?
-          t.sub<TapFile, TapFileOpts>(TapFile, {
-            at: null,
-            cwd: config.projectRoot,
-            buffered,
-            filename: file,
-          })
-        : t.spawn(node, args, {
-            at: null,
-            stack: '',
-            buffered,
-            timeout,
-            stdio,
-            env: {
-              ...env,
-              _TAPJS_PROCESSINFO_COVERAGE_,
-              _TAPJS_PROCESSINFO_COV_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
-              _TAPJS_PROCESSINFO_COV_EXCLUDE_,
-            },
-            name,
-            cwd: config.projectRoot,
-            externalID: name,
-          })
+        t.sub<TapFile, TapFileOpts>(TapFile, {
+          at: null,
+          cwd: config.projectRoot,
+          buffered,
+          filename: file,
+        })
+        : t.spawn(bin, args, {
+          at: null,
+          stack: '',
+          buffered,
+          timeout,
+          stdio,
+          env: {
+            ...env,
+            _TAPJS_PROCESSINFO_COVERAGE_,
+            _TAPJS_PROCESSINFO_COV_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_FILES_,
+            _TAPJS_PROCESSINFO_COV_EXCLUDE_,
+          },
+          name,
+          cwd: config.projectRoot,
+          externalID: name,
+        })
     },
   )
 }
